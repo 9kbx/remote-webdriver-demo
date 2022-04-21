@@ -1,5 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net;
+using PuppeteerExtraSharp;
+using PuppeteerExtraSharp.Plugins.Recaptcha;
+using PuppeteerExtraSharp.Plugins.Recaptcha.Provider.AntiCaptcha;
+using PuppeteerExtraSharp.Plugins.Recaptcha.Provider._2Captcha;
 using PuppeteerSharp;
 
 namespace RemoteWebDriverDemo
@@ -13,7 +18,10 @@ namespace RemoteWebDriverDemo
             Console.WriteLine("Hello World!");
 
             //BasicUsage();
-            RemoteUsage();
+            //RemoteUsage();
+
+            RecaptchaUsage();
+
 
             Console.ReadLine();
 
@@ -29,10 +37,12 @@ namespace RemoteWebDriverDemo
             var browser = await Puppeteer.LaunchAsync(new LaunchOptions
             {
                 DefaultViewport = null,
-                Headless = true
+                Headless = false
             });
             var page = await browser.NewPageAsync();
-            await page.GoToAsync("http://www.google.com");
+            //await page.SetExtraHttpHeadersAsync(new Dictionary<string, string>() { { "DNT","1"} });
+            await page.SetRequestInterceptionAsync(true);
+            await page.GoToAsync("https://whoer.net/");
             await page.ScreenshotAsync(@"screenshot.png");
 
             Console.WriteLine("done!");
@@ -43,6 +53,9 @@ namespace RemoteWebDriverDemo
         /// </summary>
         static async void RemoteUsage()
         {
+            // launch chrome on windows via chrome.exe --remote-debugging-port=9222
+            // and go to http://localhost:9222/json/version
+
             // chrome.exe --remote-debugging-port=9222 --user-data-dir="e:\\cache" --no-default-browser-check --proxy-server="ip:port"
             /*
              * other args:
@@ -54,12 +67,13 @@ namespace RemoteWebDriverDemo
              * --disable-gpu
              * --disable-dev-shm-usage
              * --single-process
-             * 
+             * --lang="en-GB"
              */
 
             var options = new ConnectOptions()
             {
-                DefaultViewport = null,
+                DefaultViewport = null, // fullscreen
+                
                 BrowserURL = "http://127.0.0.1:9222"
                 //BrowserURL = "http://192.168.4.180:9222"
             };
@@ -79,5 +93,24 @@ namespace RemoteWebDriverDemo
             }
             Console.WriteLine("done!");
         }
+
+        static async void RecaptchaUsage()
+        {
+            // Initialize recaptcha plugin with AntiCaptchaProvider
+            var recaptchaPlugin = new RecaptchaPlugin(new TwoCaptcha("2captcha token"));
+            var browser = await new PuppeteerExtra().Use(recaptchaPlugin).ConnectAsync(new ConnectOptions()
+            {
+                BrowserURL = "http://127.0.0.1:9222"
+            });
+
+            var page = await browser.NewPageAsync();
+            await page.GoToAsync("https://patrickhlauke.github.io/recaptcha/");
+            // Solves captcha in page!
+            await recaptchaPlugin.SolveCaptchaAsync(page);
+
+            Console.WriteLine("done");
+        }
+
+
     }
 }
